@@ -1,0 +1,6 @@
+<launch>
+	<arg name="qty" default="1" />
+	<group ns="chip_adc">
+		<node pkg="jasadc" type="main" name="replace_me" args="$(arg qty)" />
+	</group>
+</launch>
