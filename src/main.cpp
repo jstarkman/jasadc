@@ -91,13 +91,20 @@ char* get_mac(const char* iface) {
 	return mac;
 }
 
-
+/*
+ * First argument is sample period in nanoseconds (optional; defaults to 0.1s).
+ */
 int main(int argc, char** argv) {
 	uint32_t microvolts = 0;
 	uint32_t adc_raw = 0;
 	char* mac = get_mac("wlan0");
 	char buf[128];
 	int i = 17; /* length of MAC */
+
+	/* parse args */
+	if (argc >= 2) {
+		sample_period.tv_nsec = atoi(argv[1]);
+	}
 
 	mac[i] = 0; /* remove newline */
 	while (i-->0) {
@@ -123,7 +130,6 @@ int main(int argc, char** argv) {
 	while (1) {
 		adc_raw = read_adc();
 		microvolts = convert_adc_to_microvolts(adc_raw);
-		printf("ADC value: %d microvolts\n", microvolts);
 
 		muv_output.data = microvolts;
 		pub_muv.publish(muv_output);
