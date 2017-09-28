@@ -14,7 +14,7 @@
 #include <std_msgs/Int32.h>
 
 
-#define OFFSET 0x00 /* use 0x01 for 0.7V--2.7V) */
+#define OFFSET 0 /* use 1 for 0.7V--2.7V) */
 
 int file;
 struct timespec sample_period = { 0, 100000000 };
@@ -62,9 +62,11 @@ uint32_t enable_adc() {
 uint32_t read_adc() {
 	uint32_t r_high8 = adc_get(0x64);
 	uint32_t r_low4 = adc_get(0x65);
-	uint32_t val = r_high8 << 4 | r_low4;
-	uint32_t millivolts = ((val * 1000) >> 11) + (OFFSET * 700);
-	return millivolts;
+	return r_high8 << 4 | r_low4;
+}
+
+uint32_t convert_adc_to_microvolts(uint32_t adc) {
+	return ((adc * 1000000) >> 11) + (OFFSET * 700000);
 }
 
 
@@ -91,7 +93,8 @@ char* get_mac(const char* iface) {
 
 
 int main(int argc, char** argv) {
-	uint32_t millivolts = 0;
+	uint32_t microvolts = 0;
+	uint32_t adc_raw = 0;
 	char* mac = get_mac("wlan0");
 	char buf[128];
 	int i = 17; /* length of MAC */
@@ -105,20 +108,27 @@ int main(int argc, char** argv) {
 	buf[0] = 0;
 	strcat(buf, "chip_adc_");
 	strcat(buf, mac);
+
 	ros::init(argc, argv, buf);
 	ros::NodeHandle n("~");
-	ros::Publisher pub = n.advertise<std_msgs::Int32>("millivolts/0", 1);
+	ros::Publisher pub_muv = n.advertise<std_msgs::Int32>("microvolts", 1);
+	ros::Publisher pub_adc = n.advertise<std_msgs::Int32>("adc", 1);
+	std_msgs::Int32 muv_output;
 	std_msgs::Int32 adc_output;
+	muv_output.data = 0;
 	adc_output.data = 0;
 
 	open_adc(0x34);
 	enable_adc();
 	while (1) {
-		millivolts = read_adc();
-		printf("ADC value: %d millivolts\n", millivolts);
+		adc_raw = read_adc();
+		microvolts = convert_adc_to_microvolts(adc_raw);
+		printf("ADC value: %d microvolts\n", microvolts);
 
-		adc_output.data = millivolts;
-		pub.publish(adc_output);
+		muv_output.data = microvolts;
+		pub_muv.publish(muv_output);
+		adc_output.data = adc_raw;
+		pub_adc.publish(adc_output);
 
 		nanosleep(&sample_period, NULL);
 	}
