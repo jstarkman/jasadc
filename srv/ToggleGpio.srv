@@ -1,0 +1,10 @@
+int32 OUT_LOW  = 0
+int32 OUT_HIGH = 1
+int32 IN_PUB   = 2
+int32 IN_NOPUB = 3
+
+
+int32 pin # should be 0--7 inclusive
+int32 mode # should be one of the constants above
+---
+bool success

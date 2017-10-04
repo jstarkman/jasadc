@@ -12,12 +12,18 @@
 
 #include <ros/ros.h>
 #include <std_msgs/Int32.h>
-
+#include <jasadc/ToggleGpio.h>
 
 #define OFFSET 0 /* use 1 for 0.7V--2.7V) */
+#define GPIO_MAX 8
 
 int file;
 struct timespec sample_period = { 0, 100000000 };
+int gpio_state[GPIO_MAX];
+int gpio_fd[GPIO_MAX];
+char* gpio_fn[GPIO_MAX * 2];
+
+/* ADC */
 
 void open_adc(int i2c_addr_adc) {
 	file = open("/dev/i2c-0", O_RDWR);
@@ -70,6 +76,103 @@ uint32_t convert_adc_to_microvolts(uint32_t adc) {
 }
 
 
+/* GPIO */
+
+#include "get_xio_base.hpp"
+
+void gpio_init() {
+	char* buf;
+	char* buf_clone;
+	int i = 0;
+	int export_fd = open("/sys/class/gpio/export", O_WRONLY);
+	char* gpio;
+	gpio[0] = 0;
+	for (i = 0; i < GPIO_MAX; i++) {
+		gpio = itoa(get_xio_base() + i);
+		write(export_fd, gpio, strlen(gpio));
+		/* get all filenames ahead of time */
+		buf = (char*) malloc(100);
+		buf_clone = (char*) malloc(100);
+		strcat(buf, "/sys/class/gpio/gpio");
+		strcat(buf, gpio);
+		strcat(buf, "/");
+		strcpy(buf_clone, buf);
+		strcat(buf, "direction");
+		gpio_fn[i + i + 0] = buf;
+		strcat(buf_clone, "value");
+		gpio_fn[i + i + 1] = buf_clone;
+	}
+	close(export_fd);
+}
+
+void gpio_uninit() {
+	int i = 0;
+	int export_fd = open("/sys/class/gpio/unexport", O_WRONLY);
+	char* gpio;
+	gpio[0] = 0;
+	for (i = 0; i < GPIO_MAX; i++) {
+		gpio = itoa(get_xio_base() + i);
+		write(export_fd, gpio, strlen(gpio));
+	}
+	close(export_fd);
+}
+
+bool gpio_get(int pin) {
+	char buf[1];
+	if (read(gpio_fd[pin], buf, 1) != 1) {
+		fprintf(stderr, "GPIO read failed\n");
+		exit(33);
+	}
+	return buf[0] == '1';
+}
+
+void gpio_set(int pin, bool value) {
+	char buf[1];
+	buf[0] = '0' + value;
+	if (write(gpio_fd[pin], buf, 1) != 1) {
+		fprintf(stderr, "GPIO write failed; pin = %d, value = %d\n", pin, value);
+		exit(34);
+	}
+}
+
+bool serve_gpio(jasadc::ToggleGpio::Request& req,
+                jasadc::ToggleGpio::Response& res) {
+	using namespace jasadc::ToggleGpio;
+	int pin = req.pin;
+	int mode = req.mode;
+	if (pin < 0 || pin >= GPIO_MAX ) {
+		goto fail;
+	}
+	switch (mode) {
+	case OUT_LOW:
+		if (gpio_state[pin] != OUT_LOW) {
+			if (gpio_state[pin] == OUT_HIGH) {
+				gpio_set(pin, 0);
+			} else {
+				close(gpio_fd[pin]);
+				gpio_fd[pin] = open(FIXME);
+			}
+		}
+		break;
+	case OUT_HIGH:
+
+		break;
+	case IN_PUB:
+	case IN_NOPUB:
+		
+		break;
+	default:
+		goto fail;
+	}
+	gpio_state[pin] = mode;
+	return true;
+		fail:
+	res.success = false;
+	return true;
+}
+
+/* other */
+
 char* get_mac(const char* iface) {
 	const int len_mac = 18;
 	int fd;
@@ -120,10 +223,18 @@ int main(int argc, char** argv) {
 	ros::NodeHandle n("~");
 	ros::Publisher pub_muv = n.advertise<std_msgs::Int32>("microvolts", 1);
 	ros::Publisher pub_adc = n.advertise<std_msgs::Int32>("adc", 1);
+	ros::ServiceServer n.advertiseService("gpio", serve_gpio);
+	ros::Publisher* pub_gpios[GPIO_MAX];
+	for (i = 0; i < GPIO_MAX; i++) {
+		pub_gpios[i] = &n.advertise<std_msgs::Bool>("gpio" + i, 1); 
+	}
+	
 	std_msgs::Int32 muv_output;
 	std_msgs::Int32 adc_output;
+	std_msgs::Bool gpio_output;
 	muv_output.data = 0;
 	adc_output.data = 0;
+	gpio_output.data = false;
 
 	open_adc(0x34);
 	enable_adc();
@@ -135,6 +246,13 @@ int main(int argc, char** argv) {
 		pub_muv.publish(muv_output);
 		adc_output.data = adc_raw;
 		pub_adc.publish(adc_output);
+
+		for (i = 0; i < GPIO_MAX; i++) {
+			if (gpio_state[i] == jasadc::ToggleGpio::IN_PUB) {
+				gpio_output.data = gpio_get(i);
+				pub_gpios[i]->publish(gpio_output);
+			}
+		}
 
 		nanosleep(&sample_period, NULL);
 	}
