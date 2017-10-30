@@ -10,8 +10,8 @@
 #include <linux/i2c-dev.h>
 
 
-#include <ros/ros.h>
-#include <std_msgs/Int32.h>
+#include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/int32.hpp"
 
 
 #define OFFSET 0 /* use 1 for 0.7V--2.7V) */
@@ -116,14 +116,16 @@ int main(int argc, char** argv) {
 	strcat(buf, "chip_adc_");
 	strcat(buf, mac);
 
-	ros::init(argc, argv, buf);
-	ros::NodeHandle n("~");
-	ros::Publisher pub_muv = n.advertise<std_msgs::Int32>("microvolts", 1);
-	ros::Publisher pub_adc = n.advertise<std_msgs::Int32>("adc", 1);
-	std_msgs::Int32 muv_output;
-	std_msgs::Int32 adc_output;
-	muv_output.data = 0;
-	adc_output.data = 0;
+	rclcpp::init(argc, argv);
+	auto node = rclcpp::node::Node::make_shared(buf);
+	auto pub_muv = node->create_publisher<std_msgs::msg::Int32>("microvolts", rmw_qos_profile_default);
+	auto pub_adc = node->create_publisher<std_msgs::msg::Int32>("adc", rmw_qos_profile_default);
+
+
+	auto muv_output = std::make_shared<std_msgs::msg::Int32>();
+	auto adc_output = std::make_shared<std_msgs::msg::Int32>();
+	muv_output->data = 0;
+	adc_output->data = 0;
 
 	open_adc(0x34);
 	enable_adc();
@@ -131,10 +133,10 @@ int main(int argc, char** argv) {
 		adc_raw = read_adc();
 		microvolts = convert_adc_to_microvolts(adc_raw);
 
-		muv_output.data = microvolts;
-		pub_muv.publish(muv_output);
-		adc_output.data = adc_raw;
-		pub_adc.publish(adc_output);
+		muv_output->data = microvolts;
+		pub_muv->publish(muv_output);
+		adc_output->data = adc_raw;
+		pub_adc->publish(adc_output);
 
 		nanosleep(&sample_period, NULL);
 	}

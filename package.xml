@@ -1,25 +1,21 @@
 <?xml version="1.0"?>
-<package>
+<?xml-model href="http://download.ros.org/schema/package_format2.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="2">
   <name>jasadc</name>
-  <version>0.0.1</version>
+  <version>1.0.0</version>
   <description>The jasadc package</description>
-
   <maintainer email="-1@case.edu">JAS</maintainer>
-
   <license>GPLv3</license>
-
   <url type="website">https://github.com/jstarkman/jasadc</url>
-
   <author email="-1@case.edu">JAS</author>
 
-  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <build_depend>roscpp</build_depend>
-  <build_depend>std_msgs</build_depend>
-
-  <run_depend>roscpp</run_depend>
-  <run_depend>std_msgs</run_depend>
+  <depend>rclcpp</depend>
+  <depend>rmw_implementation</depend>
+  <depend>std_msgs</depend>
 
   <export>
+    <build_type>ament_cmake</build_type>
   </export>
 </package>
