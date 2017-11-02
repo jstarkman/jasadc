@@ -52,7 +52,7 @@ char adc_get(char reg) {
 }
 
 
-uint32_t enable_adc() {
+void enable_adc() {
 	adc_set(0x83, 0x80); /* disable ADC in on GPIO0 */
 	adc_set(0x90, 0x04); /* set GPIO0 to 12-bit ADC */
 	adc_set(0x85, OFFSET); /* set range */
@@ -118,8 +118,8 @@ int main(int argc, char** argv) {
 
 	rclcpp::init(argc, argv);
 	auto node = rclcpp::node::Node::make_shared(buf);
-	auto pub_muv = node->create_publisher<std_msgs::msg::Int32>("microvolts", rmw_qos_profile_default);
-	auto pub_adc = node->create_publisher<std_msgs::msg::Int32>("adc", rmw_qos_profile_default);
+	auto pub_muv = node->create_publisher<std_msgs::msg::Int32>("{node}/microvolts", rmw_qos_profile_default);
+	auto pub_adc = node->create_publisher<std_msgs::msg::Int32>("{node}/adc", rmw_qos_profile_default);
 
 
 	auto muv_output = std::make_shared<std_msgs::msg::Int32>();
