@@ -139,7 +139,7 @@ int main(int argc, char** argv) {
 		adc_output->data = adc_raw;
 		pub_adc->publish(adc_output);
 
-		nanosleep(&sample_period, NULL);
+		// nanosleep(&sample_period, NULL);
 	}
 	return 0;
 }
