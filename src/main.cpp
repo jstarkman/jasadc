@@ -56,6 +56,7 @@ uint32_t enable_adc() {
 	adc_set(0x83, 0x80); /* disable ADC in on GPIO0 */
 	adc_set(0x90, 0x04); /* set GPIO0 to 12-bit ADC */
 	adc_set(0x85, OFFSET); /* set range */
+	adc_set(0x84, 0xF2); /* Set 200Hz sampling for AXP209 (rest default) */
 	adc_set(0x83, 0x88); /* enable ADC on GPIO0 */
 }
 
